@@ -143,6 +143,9 @@ class GameBoard:
             self.clear_matches()
             self.fill_empty_spaces()
 
+    def reset_color(self):
+        self.colors = STONE_COLORS[:(self.level + 3)]
+
     def draw(self, screen):
         """Отрисовка игрового поля"""
         # Рисуем сетку
@@ -264,6 +267,22 @@ class GameBoard:
                     # Заполняем пустоты новыми камнями
                     self.grid[row][col] = Stone(random.choice(self.colors), row, col)
 
+    def check_for_deadlock(self):
+        for row in range(GRID_SIZE):
+            for col in range(GRID_SIZE):
+                # Проверкас c правым соседом
+                if col < GRID_SIZE - 1:
+                    if self.is_valid_move(row, col, row, col + 1):
+                        print(f"Step: {row}, {col}, {row}, {col + 1}")
+                        return False # Ходвозможен
+
+                # Проверка с нижним соседом
+                if row < GRID_SIZE - 1:
+                    if self.is_valid_move(row, col, row + 1, col):
+                        print(f"Step: {row}, {col}, {row + 1}, {col}")
+                        return False # Ход возможен
+        return True # Тупик
+
     def swap_stones(self, row1, col1, row2, col2):
         """Меняет два камня местами"""
         # Сохраняем временные ссылки на камни
@@ -289,8 +308,8 @@ class GameBoard:
         if stone1 and stone2:
             col_before = STONE_COLORS_DICT[stone1.color]
             col_after = STONE_COLORS_DICT[stone2.color]
-            print(
-                f'Swap stones: Col: {col1}, Row: {row1}, Color: {col_before} with Col: {col2}, Row: {row2}, Color: {col_after}')
+            # print(
+            #     f'Swap stones: Col: {col1}, Row: {row1}, Color: {col_before} with Col: {col2}, Row: {row2}, Color: {col_after}')
 
     def is_valid_move(self, row1, col1, row2, col2):
         """Проверяет, является ли обмен камнями допустимым"""
@@ -325,6 +344,9 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q or event.key == pygame.K_ESCAPE:
+                    running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
 
@@ -392,12 +414,11 @@ def main():
 
         # Отображение счета и количества ходов
         font = pygame.font.Font(None, 36)
-        level_text = font.render(f"Уровень: {game_board.level}", True, BLACK)
-        score_text = font.render(f"Счет: {game_board.score}", True, BLACK)
-        moves_text = font.render(f"Ходы: {game_board.moves}", True, BLACK)
-        screen.blit(level_text, (10, 10))
-        screen.blit(score_text, (150, 10))
-        screen.blit(moves_text, (280, 10))
+        level_text = f"Уровень: {game_board.level}"
+        score_text = f"Счет: {game_board.score}"
+        moves_text = f"Ходы: {game_board.moves}"
+        title_text = font.render(f"{level_text} {score_text} {moves_text}", True, BLACK)
+        screen.blit(title_text, (10, 10))
 
         # Отображение инструкции
         instruction_font = pygame.font.Font(None, 24)
@@ -415,11 +436,16 @@ def main():
             # Проверяем, не достигли ли мы максимального уровня
             if game_board.level < len(LEVELS):
                 game_board.level += 1
+                # game_board.reset_color()
                 game_board.initialize_board()
                 game_board.draw(screen)
             else:
                 # Достигнут максимальный уровень - победа
                 popup = Popup("Поздравляем! Вы выиграли!", [("Закрыть", "close"), ("Сыграть заново", "restart")])
+
+        if game_board.check_for_deadlock():
+            dead_lock_text = font.render(f"ВЫ ПРОИГРАЛИ!", True, RED)
+            screen.blit(dead_lock_text, (380, SCREEN_HEIGHT - 35))
 
         # Отрисовка всплывающего окна - только если popup существует
         if popup:
